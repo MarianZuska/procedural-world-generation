@@ -1,0 +1,126 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain 
+#include "/Noise.compute"
+#include "/MarchTables.compute"
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+
+RWTexture2D<float4> Result;
+
+int numPointsPerAxis;
+
+float surfaceLevel;
+float perlinZoom;
+float3 minSectorPos;
+float3 minCornerPos;
+float3 offsetVec;
+float worldZoom;
+
+//int circlesCount;
+int circleRadius;
+float3 circle;
+
+struct Triangle {
+	float3 vertexC;
+	float3 vertexB;
+	float3 vertexA;
+};
+
+AppendStructuredBuffer<Triangle> triangles;
+//AppendStructuredBuffer<float3> circles;
+
+//RWStructuredBuffer<float4> points;
+
+//samples a point in 3d space, returns surface value
+float samplePoint(float3 pos) {
+
+	if ((pos.x - circle.x)*(pos.x - circle.x) + (pos.y - circle.y)*(pos.y - circle.y) + (pos.z - circle.z)*(pos.z - circle.z) <= circleRadius * circleRadius) {
+		return 0;
+	}
+
+	pos /= numPointsPerAxis;
+	pos *= perlinZoom;
+	pos += offsetVec;
+
+	return snoise(pos);
+}
+
+//index of the curent corner configuration in the marchtable
+int index(float3 pos) {
+	int cubeIndex = 0;
+
+	for (int i = 0; i < 8; i++) {
+		//float val = Perlin3D(point + cornerOffsets[i]);
+		float val = samplePoint(pos + cornerOffsets[i]);
+		if (val < surfaceLevel) {
+			//set i'th bit if below surface
+			cubeIndex |= 1 << i;
+		}
+	}
+	return cubeIndex;
+}
+
+
+[numthreads(8,8,8)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	/*if (id.x >= numPointsPerAxis - 1 || id.y >= numPointsPerAxis - 1 || id.z >= numPointsPerAxis - 1) {
+		return;
+	}*/
+
+	//draw one cube
+	int x = id.x;
+	int y = id.y;
+	int z = id.z;
+
+
+	//minCornerPos = minSectorPos + new float3(x, y, z);#
+	minCornerPos = minSectorPos + float3(x, y, z);
+
+	//lookup table index
+	int lookupIndex = index(minCornerPos);
+
+	//iterate through triangleTable
+	int nextVertIndex = 0;
+	while (triangleTable[lookupIndex][nextVertIndex] != -1) {
+
+		//append single triangle
+		Triangle tri;
+		for (int i = 0; i < 3; i++) {
+			//get endpoints of edges
+			int edgeIndex = triangleTable[lookupIndex][nextVertIndex + i];
+			float3 vert1 = minCornerPos + edgeVertexOffsets[edgeIndex][0];
+			float3 vert2 = minCornerPos + edgeVertexOffsets[edgeIndex][1];
+
+
+			//interpolate:
+			float val1 = samplePoint(vert2);
+			float val2 = samplePoint(vert1);
+
+
+			float diff;
+			if ((surfaceLevel > val1 && surfaceLevel > val2) || (surfaceLevel < val1 && surfaceLevel < val2) || val1 == val2) {
+				diff = 0.5f;
+			}
+			else {
+				diff = (surfaceLevel - val1) / (val2 - val1);
+			}
+
+			float3 mid = vert2 + diff * (vert1 - vert2);
+			//mid *= worldZoom; //for zoom, but wrong sectors
+			mid += offsetVec;
+						
+			if (i == 0) {
+				tri.vertexA = mid;
+			} else if (i == 1) {
+				tri.vertexB = mid;
+			}
+			else {
+				tri.vertexC = mid;
+			}
+		}
+		triangles.Append(tri);
+
+		nextVertIndex += 3;
+	}
+}
