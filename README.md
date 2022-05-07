@@ -5,7 +5,7 @@ Infinite world generation made in Unity using the marching cubes algorithm.
 ---
 
 A little game/project about procedural world generation. It can be played [here](
-https://crysaac.itch.io/procedual-world-generation-using-marching-cubes):
+https://crysaac.itch.io/procedural-world-generation-using-marching-cubes):
 
 It contains an implementation of the *Marching Cubes* algorithm, which constructs a 3D Mesh from three-dimensional scalar fields (aka 3D Arrays containing float values from 0 to 1).
 
