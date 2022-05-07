@@ -1,6 +1,6 @@
-# procedual-generation-using-marching-cubes
+# procedual-world-generation
 
-Infinite world generation made in Unity.
+Infinite world generation made in Unity using the marching cubes algorithm.
 
 ---
 
