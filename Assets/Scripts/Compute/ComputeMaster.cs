@@ -9,7 +9,7 @@ public class ComputeMaster : MonoBehaviour
     public Transform player;
     public float surfaceLevel;
 
-    [Range(1,1)]
+    [Range(1, 1)]
     public float worldZoom = 1f;
 
     public int numPointsPerAxis;
@@ -48,15 +48,19 @@ public class ComputeMaster : MonoBehaviour
 
     private List<Chunk> meshHolders;
 
-    struct Triangle {
-        #pragma warning disable 649 // disable unassigned variable warning
+    struct Triangle
+    {
+#pragma warning disable 649 // disable unassigned variable warning
         public Vector3 a;
         public Vector3 b;
         public Vector3 c;
 
-        public Vector3 this[int i] {
-            get {
-                switch (i) {
+        public Vector3 this[int i]
+        {
+            get
+            {
+                switch (i)
+                {
                     case 0:
                         return a;
                     case 1:
@@ -67,8 +71,9 @@ public class ComputeMaster : MonoBehaviour
             }
         }
     };
-    
-    struct Chunk {
+
+    struct Chunk
+    {
         public Vector3 position;
         public GameObject meshHolder;
         public bool used;
@@ -77,7 +82,8 @@ public class ComputeMaster : MonoBehaviour
         public int[] triangles;
     }
 
-    private void SetShaderParameters(Vector3 minCorner) {
+    private void SetShaderParameters(Vector3 minCorner)
+    {
 
         marchingShader.SetBuffer(0, "triangles", trianglesBuffer);
 
@@ -102,14 +108,18 @@ public class ComputeMaster : MonoBehaviour
     }
 
     //modulo that works for negative numbers
-    float mod(float k, float n) {
+    float mod(float k, float n)
+    {
         return ((k %= n) < 0) ? k + n : k;
     }
 
-    void Start() {
+    void Start()
+    {
         int numVoxels = numPointsPerAxis * numPointsPerAxis * numPointsPerAxis;
-        maxTriangleCount = numVoxels * 5;
+        maxTriangleCount = numVoxels * 50;
         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
+
+        Debug.Log(maxTriangleCount * 36);
 
         curMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
 
@@ -120,9 +130,12 @@ public class ComputeMaster : MonoBehaviour
 
 
         meshHolders = new List<Chunk>();
-        for (int x = -2; x <= 2; x++) {
-            for (int y = -2; y <= 2; y++) {
-                for (int z = -2; z <= 2; z++) {
+        for (int x = -2; x <= 2; x++)
+        {
+            for (int y = -2; y <= 2; y++)
+            {
+                for (int z = -2; z <= 2; z++)
+                {
                     GameObject tmpMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
                     Mesh curMesh = new Mesh();
                     tmpMeshHolder.GetComponent<MeshFilter>().sharedMesh = curMesh;
@@ -145,15 +158,17 @@ public class ComputeMaster : MonoBehaviour
         float timeInShader = 0;
         float timeInMeshAssembly = 0;
         float timeGettingShaderData = 0;
-        
+
         //ability
-        if(Input.GetKeyDown(KeyCode.Space)) {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
             ciclesCount += 1;
-            //circles.Add(player.position);
-            circle = player.position;
+            circle = player.position - new Vector3(10, 10, 10);
             firstFrame = true;
-            //destroy not used:
-            for (int i = 0; i < meshHolders.Count; i++) {
+
+            //redo all meshes if ability cast
+            for (int i = 0; i < meshHolders.Count; i++)
+            {
                 Destroy(meshHolders[i].meshHolder);
             }
             meshHolders = new List<Chunk>();
@@ -162,13 +177,14 @@ public class ComputeMaster : MonoBehaviour
         Vector3 playerPosition = player.position;
         Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis) - numPointsPerAxis,
                                          playerPosition.y - mod(playerPosition.y, numPointsPerAxis) - numPointsPerAxis,
-                                         playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis );
+                                         playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis);
         //nextSector /= worldZoom;
-        
+
         bool sectorChanged = firstFrame || Vector3.Distance(currentSector, nextSector) >= 0.2f;
-        
+
         //actual cube marching
-        if (sectorChanged) {
+        if (sectorChanged)
+        {
             firstFrame = false;
             currentSector = nextSector;
 
@@ -177,20 +193,24 @@ public class ComputeMaster : MonoBehaviour
 
             //"deep copy" meshHolders into oldChunks but set destroy to true
             List<Chunk> oldChunks = new List<Chunk>();
-            for (int i = 0; i < meshHolders.Count; i++) {
+            for (int i = 0; i < meshHolders.Count; i++)
+            {
                 Chunk chunk = meshHolders[i];
                 chunk.destroy = true;
                 oldChunks.Add(chunk);
             }
-            
+
             meshHolders = new List<Chunk>();
             int meshHolderIndex = 0;
             int skippedCount = 0;
-            
+
             //iterate through all chunks (3x3x3)
-            for (int x = -1; x <= 1; x++) {
-                for (int y = -1; y <= 1; y++) {
-                    for (int z = -1; z <= 1; z++) {
+            for (int x = -1; x <= 1; x++)
+            {
+                for (int y = -1; y <= 1; y++)
+                {
+                    for (int z = -1; z <= 1; z++)
+                    {
 
                         Vector3 targetCoordinate = currentSector + new Vector3(
                             numPointsPerAxis * x,
@@ -200,13 +220,15 @@ public class ComputeMaster : MonoBehaviour
                         int meshIndex = checkIfMeshExists(oldChunks, targetCoordinate);
 
                         //mesh already there
-                        if (meshIndex > -1) {
+                        if (meshIndex > -1)
+                        {
                             skippedCount++;
                             meshHolders.Add(oldChunks[meshIndex]);
                         }
-                        
+
                         //new mesh needed
-                        else {
+                        else
+                        {
 
                             //Run shader
                             int numThreadsPerAxis = Mathf.CeilToInt(numPointsPerAxis / 8.0f);
@@ -226,13 +248,15 @@ public class ComputeMaster : MonoBehaviour
                             int numTris = triCountArray[0];
                             triCountBuffer.Release();
 
+                            Debug.Log("Num tris: " + numTris);
+
                             // Tris data
                             tris = new Triangle[numTris];
                             trianglesBuffer.GetData(tris, 0, 0, numTris);
                             trianglesBuffer.Release();
 
                             timeGettingShaderData += Time.realtimeSinceStartup - timeBefore;
-                            
+
                             timeBefore = Time.realtimeSinceStartup;
 
 
@@ -241,13 +265,14 @@ public class ComputeMaster : MonoBehaviour
                             var vertices = new Vector3[numTris * 3];
                             var triangles = new int[numTris * 3];
 
-                            for (int i = 0; i < numTris; i++) {
-                                vertices[3*i + 0] = tris[i].a;
-                                vertices[3*i + 1] = tris[i].b;
-                                vertices[3*i + 2] = tris[i].c;
-                                triangles[3*i + 0] = 3*i + 0;
-                                triangles[3*i + 1] = 3*i + 1;
-                                triangles[3*i + 2] = 3*i + 2;
+                            for (int i = 0; i < numTris; i++)
+                            {
+                                vertices[3 * i + 0] = tris[i].a;
+                                vertices[3 * i + 1] = tris[i].b;
+                                vertices[3 * i + 2] = tris[i].c;
+                                triangles[3 * i + 0] = 3 * i + 0;
+                                triangles[3 * i + 1] = 3 * i + 1;
+                                triangles[3 * i + 2] = 3 * i + 2;
                             }
 
                             // draw mesh
@@ -262,10 +287,10 @@ public class ComputeMaster : MonoBehaviour
 
                             Chunk chunk = new Chunk();
                             chunk.meshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
-                            
+
                             MeshFilter meshFilter = chunk.meshHolder.GetComponent<MeshFilter>();
                             meshFilter.sharedMesh = newMesh;
-                            
+
                             //chunk.meshHolder.GetComponent<MeshCollider>().sharedMesh = newMesh;
 
                             MeshCollider meshCollider = chunk.meshHolder.GetComponent<MeshCollider>();
@@ -278,11 +303,11 @@ public class ComputeMaster : MonoBehaviour
 
                             meshCollider.enabled = false;
                             meshCollider.enabled = true;
-                            
+
                             chunk.destroy = false;
                             chunk.used = true;
                             chunk.position = targetCoordinate;
-                            
+
                             meshHolders.Add(chunk);
 
                             timeInMeshAssembly += Time.realtimeSinceStartup - timeBefore;
@@ -291,14 +316,14 @@ public class ComputeMaster : MonoBehaviour
                             trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
                             trianglesBuffer.SetCounterValue(0);
                             triCountBuffer.Release();
-                            
+
 
                         }
                         meshHolderIndex++;
                     }
                 }
             }
-            
+
             Debug.Log("-------------------");
             Debug.Log("Performance measures:");
             Debug.Log("Time in update overall:" + (Time.realtimeSinceStartup - startingTime));
@@ -307,10 +332,12 @@ public class ComputeMaster : MonoBehaviour
             Debug.Log("Time in mesh assembly: " + timeInMeshAssembly);
             Debug.Log("-------------------");
             Debug.Log("");
-            
+
             //destroy not used:
-            for (int i = 0; i < oldChunks.Count; i++) {
-                if (oldChunks[i].destroy) {
+            for (int i = 0; i < oldChunks.Count; i++)
+            {
+                if (oldChunks[i].destroy)
+                {
                     Destroy(oldChunks[i].meshHolder);
                 }
             }

@@ -27,15 +27,18 @@ struct Triangle {
 };
 
 AppendStructuredBuffer<Triangle> triangles;
-//AppendStructuredBuffer<float3> circles;
 
+//AppendStructuredBuffer<float3> circles;
 //RWStructuredBuffer<float4> points;
 
 //samples a point in 3d space, returns surface value
 float samplePoint(float3 pos) {
 
-	if ((pos.x - circle.x)*(pos.x - circle.x) + (pos.y - circle.y)*(pos.y - circle.y) + (pos.z - circle.z)*(pos.z - circle.z) <= circleRadius * circleRadius) {
-		return 0;
+	float distToCircle2 = (pos.x - circle.x)*(pos.x - circle.x) + (pos.y - circle.y)*(pos.y - circle.y) + (pos.z - circle.z)*(pos.z - circle.z);
+	float circleRadius2 = circleRadius * circleRadius;
+
+	if (distToCircle2 <= circleRadius2) {
+		return 1 - (distToCircle2/circleRadius2 * 2 - 1);
 	}
 
 	pos /= numPointsPerAxis;
@@ -97,7 +100,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 			float val1 = samplePoint(vert2);
 			float val2 = samplePoint(vert1);
 
-
 			float diff;
 			if ((surfaceLevel > val1 && surfaceLevel > val2) || (surfaceLevel < val1 && surfaceLevel < val2) || val1 == val2) {
 				diff = 0.5f;
@@ -107,7 +109,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 			}
 
 			float3 mid = vert2 + diff * (vert1 - vert2);
+
 			//mid *= worldZoom; //for zoom, but wrong sectors
+
 			mid += offsetVec;
 						
 			if (i == 0) {
