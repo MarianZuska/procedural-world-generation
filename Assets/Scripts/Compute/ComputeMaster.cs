@@ -21,6 +21,8 @@ public class ComputeMaster : MonoBehaviour
 
     public int circleRadius = 10;
 
+    public Color lightColor;
+    public Color darkColor;
 
     public GameObject meshHolder;
 
@@ -47,6 +49,8 @@ public class ComputeMaster : MonoBehaviour
     private Vector3 circle;
 
     private List<Chunk> meshHolders;
+
+    private Camera camera;
 
     struct Triangle
     {
@@ -115,6 +119,8 @@ public class ComputeMaster : MonoBehaviour
 
     void Start()
     {
+        camera = Camera.main;
+
         int numVoxels = numPointsPerAxis * numPointsPerAxis * numPointsPerAxis;
         maxTriangleCount = numVoxels * 50;
         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
@@ -274,6 +280,9 @@ public class ComputeMaster : MonoBehaviour
                                 triangles[3 * i + 1] = 3 * i + 1;
                                 triangles[3 * i + 2] = 3 * i + 2;
                             }
+                            
+                            
+                            
 
                             // draw mesh
                             Mesh newMesh = new Mesh();
@@ -284,6 +293,12 @@ public class ComputeMaster : MonoBehaviour
                             newMesh.RecalculateNormals();
                             //newMesh.RecalculateBounds();
                             //newMesh.RecalculateTangents();
+                            //color mesh
+                            camera.backgroundColor = darkColor;
+                            Color[] colors = new Color[vertices.Length];
+                            for (int i = 0; i < vertices.Length; i++)
+                                colors[i] = Color.Lerp(lightColor, darkColor, Mathf.PerlinNoise(vertices[i][0]/5f, vertices[i][1]/5f)*2f - 0.5f);
+                            newMesh.colors = colors;
 
                             Chunk chunk = new Chunk();
                             chunk.meshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
