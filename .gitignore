@@ -6,6 +6,9 @@
 # --
 # own addition:
 .idea/
+# Visual Studio code
+.vscode/*
+
 # --
 
 /[Ll]ibrary/
