@@ -19,12 +19,22 @@ public class PlayerMovement : MonoBehaviour
     private bool boostActive = false;
 
     void Awake()
-    {
+    {   
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         TryGetComponent(out rbody);
     }
 
+
     void Update()
     {
+        if(Input.GetKeyDown(KeyCode.Escape)) {
+            Cursor.lockState = (Cursor.lockState == CursorLockMode.None) ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = Cursor.lockState == CursorLockMode.None;
+            
+            Debug.Log( Cursor.lockState + " " + Cursor.visible);
+        }
+
         moveInput = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
         rotationInput = new Vector3(-Input.GetAxis("Mouse Y") * 1.5f, Input.GetAxis("Mouse X") * 1.5f, 0);
 
