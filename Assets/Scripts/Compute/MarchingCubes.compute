@@ -46,6 +46,8 @@ bool insideAnySphere(float3 pos, int sphereCount, StructuredBuffer<float3> spher
 //samples a point in 3d space, returns surface value
 float samplePoint(float3 pos) {
 	
+	// note that currently the airSpheres are checked first which means that a point whithin an airSphere can never 
+	// become terrain again even if it is shot with a ground sphere
 	if(insideAnySphere(pos, airSphereCount, airSpheres)) return 1;
 	if(insideAnySphere(pos, groundSphereCount, groundSpheres)) return -1;
 
