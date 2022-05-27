@@ -11,7 +11,8 @@ float3 minCornerPos;
 float3 offsetVec;
 float worldZoom;
 
-int sphereCount;
+int airSphereCount;
+int groundSphereCount;
 int sphereRadius;
 
 struct Triangle {
@@ -21,11 +22,12 @@ struct Triangle {
 };
 
 AppendStructuredBuffer<Triangle> triangles;
-StructuredBuffer<float3> spheres;
+StructuredBuffer<float3> airSpheres;
+StructuredBuffer<float3> groundSpheres;
 RWStructuredBuffer<int> numTris;
 
-//samples a point in 3d space, returns surface value
-float samplePoint(float3 pos) {
+//checks if the given point is inside on of the spheres
+bool insideAnySphere(float3 pos, int sphereCount, StructuredBuffer<float3> spheres) {
 	if(sphereCount > 0) {
 		for(int i=0; i<sphereCount; i++) {
 			float3 sphere = spheres[i];
@@ -33,10 +35,19 @@ float samplePoint(float3 pos) {
 			float sphereRadius2 = sphereRadius * sphereRadius;
 
 			if (distToCircle2 <= sphereRadius2) {
-				return 1 - (distToCircle2/sphereRadius2 * 2 - 1);
+				return true;
 			}
 		}
 	}
+
+	return false;
+}
+
+//samples a point in 3d space, returns surface value
+float samplePoint(float3 pos) {
+	
+	if(insideAnySphere(pos, airSphereCount, airSpheres)) return 1;
+	if(insideAnySphere(pos, groundSphereCount, groundSpheres)) return -1;
 
 	pos /= numPointsPerAxis;
 	pos *= perlinZoom;
@@ -44,6 +55,7 @@ float samplePoint(float3 pos) {
 
 	return snoise(pos);
 }
+
 
 //index of the curent corner configuration in the marchtable
 int index(float3 pos) {

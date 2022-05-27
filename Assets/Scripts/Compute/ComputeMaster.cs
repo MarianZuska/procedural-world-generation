@@ -35,10 +35,12 @@ public class ComputeMaster : MonoBehaviour
     private bool firstFrame;
     private int sphereCount = 0;
     private ComputeBuffer trianglesBuffer;
-    private ComputeBuffer sphereBuffer;
+    private ComputeBuffer airSphereBuffer;
+    private ComputeBuffer groundSphereBuffer;
     private ComputeBuffer numTrisBuffer;
 
-    private List<Vector3> spheres;
+    private List<Vector3> airSpheres;
+    private List<Vector3> groundSpheres;
 
     private GameObject curMeshHolder;
     private Vector3 offsetVec;
@@ -98,7 +100,9 @@ public class ComputeMaster : MonoBehaviour
 
         Debug.Log(maxTriangleCount * 36);
 
-        spheres = new List<Vector3>();
+        airSpheres = new List<Vector3>();
+        groundSpheres = new List<Vector3>();
+
         curMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
 
         curMeshHolder.GetComponent<MeshFilter>().sharedMesh = new Mesh();
@@ -134,16 +138,23 @@ public class ComputeMaster : MonoBehaviour
                                          playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis);
 
         
-        for(int i = 0; i<gun.explosionPoints.Count; i++) {
-            if(!spheres.Contains(gun.explosionPoints[i] - new Vector3(10, 10, 10))) {
-                spheres.Add(gun.explosionPoints[i] - new Vector3(10, 10, 10));
+        // shot spheres
+        for(int i = 0; i<gun.airExplosionPoints.Count; i++) {
+            if(!airSpheres.Contains(gun.airExplosionPoints[i] - new Vector3(10, 10, 10))) {
+                airSpheres.Add(gun.airExplosionPoints[i] - new Vector3(10, 10, 10));
                 clearMeshes();
             }
         }
-        Debug.Log(spheres.Count);
-        Debug.Log(gun.explosionPoints.Count);
-        Debug.Log(firstFrame);
+        for(int i = 0; i<gun.groundExplosionPoints.Count; i++) {
+            if(!groundSpheres.Contains(gun.groundExplosionPoints[i] - new Vector3(10, 10, 10))) {
+                groundSpheres.Add(gun.groundExplosionPoints[i] - new Vector3(10, 10, 10));
+                clearMeshes();
+            }
+        }
+        Debug.Log("AirSpheres: " + airSpheres.Count);
+        Debug.Log("GroundSpheres: " + groundSpheres.Count);
 
+        //spheres done by pressing space (to be removed)
         if (Input.GetKeyDown(KeyCode.Space)) { 
             createSphere(playerMeshTransform.position - new Vector3(10, 10, 10)); 
             clearMeshes();
@@ -234,8 +245,11 @@ public class ComputeMaster : MonoBehaviour
                         trianglesBuffer.Release();
                         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
                         trianglesBuffer.SetCounterValue(0);
-                        if(sphereBuffer != null) {
-                            sphereBuffer.Release();
+                        if(airSphereBuffer != null) {
+                            airSphereBuffer.Release();
+                        }
+                        if(groundSphereBuffer != null) {
+                            groundSphereBuffer.Release();
                         }
                         numTrisBuffer.Dispose();
                     }
@@ -264,11 +278,16 @@ public class ComputeMaster : MonoBehaviour
         //if(spheres.Count > 0) print("last sphere space: " + spheres[spheres.Count-1]);
         //if(gun.explosionPoints.Count > 0) print("last sphere shot: " + (gun.explosionPoints[gun.explosionPoints.Count - 1]  - new Vector3(10,10,10)));
 
-        sphereBuffer = new ComputeBuffer(gun.explosionPoints.Count + spheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
-        sphereBuffer.SetData((Vector3[]) spheres.ToArray());
-        marchingShader.SetBuffer(0, "spheres", sphereBuffer);
+        airSphereBuffer = new ComputeBuffer(airSpheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
+        airSphereBuffer.SetData((Vector3[]) airSpheres.ToArray());
+        groundSphereBuffer = new ComputeBuffer(groundSpheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
+        groundSphereBuffer.SetData((Vector3[]) groundSpheres.ToArray());
 
-        marchingShader.SetInt("sphereCount", gun.explosionPoints.Count + spheres.Count);
+        marchingShader.SetBuffer(0, "airSpheres", airSphereBuffer);
+        marchingShader.SetBuffer(0, "groundSpheres", groundSphereBuffer);
+
+        marchingShader.SetInt("airSphereCount", airSpheres.Count);
+        marchingShader.SetInt("groundSphereCount", groundSpheres.Count);
 
         marchingShader.SetInt("sphereRadius", sphereRadius);
         marchingShader.SetInt("numPointsPerAxis", numPointsPerAxis);
@@ -371,7 +390,7 @@ public class ComputeMaster : MonoBehaviour
     public void createSphere(Vector3 sphereCenter) {
         sphereCount += 1;
         var sphere = sphereCenter;
-        spheres.Add(sphere);
+        airSpheres.Add(sphere);
     }
 
     private void clearMeshes() {

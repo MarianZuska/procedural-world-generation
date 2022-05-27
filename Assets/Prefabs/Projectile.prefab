@@ -53,7 +53,7 @@ TrailRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10306, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 10301, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -83,7 +83,7 @@ TrailRenderer:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 0.23789787
+        value: 0.28852654
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -104,8 +104,8 @@ TrailRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.02370949, g: 0.33962262, b: 0.06623627, a: 0.91764706}
-      key1: {r: 0.026343882, g: 0.3773585, b: 0.026343882, a: 0.27450982}
+      key0: {r: 0.7924528, g: 0.7924528, b: 0.7924528, a: 0.91764706}
+      key1: {r: 0.33962262, g: 0.33962262, b: 0.33962262, a: 0.27450982}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
       key4: {r: 0, g: 0, b: 0, a: 0}
@@ -170,7 +170,7 @@ Transform:
   m_GameObject: {fileID: 3189715307134981341}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.25, y: 0.25, z: 0.25}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7939008785396902741}
@@ -270,6 +270,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rb: {fileID: 3189715307134981342}
   explosion: {fileID: 0}
+  gun: {fileID: 0}
+  isAirBullet: 1
   bounciness: 0.6
   useGravity: 0
   maxCollisions: 0

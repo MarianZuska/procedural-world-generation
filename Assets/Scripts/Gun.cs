@@ -17,11 +17,12 @@ public class Gun : MonoBehaviour
 
     public float recoilForce;
 
-    private bool readyToShoot, shooting;
+    private bool readyToShoot, airShooting, groundShooting;
     private bool allowInvoke = true;
 
     [HideInInspector]
-    public List<Vector3> explosionPoints = new List<Vector3>();
+    public List<Vector3> airExplosionPoints = new List<Vector3>();
+    public List<Vector3> groundExplosionPoints = new List<Vector3>();
 
     private void Awake() {
         readyToShoot = true;
@@ -32,15 +33,18 @@ public class Gun : MonoBehaviour
     }
 
     private void myInput() {
-        if(allowButtonHold) shooting = Input.GetKey(KeyCode.Mouse0);
-        else shooting = Input.GetKeyDown(KeyCode.Mouse0);
+        if(allowButtonHold) airShooting = Input.GetKey(KeyCode.Mouse0);
+        else airShooting = Input.GetKeyDown(KeyCode.Mouse0);
 
-        if(readyToShoot && shooting) {
-            shoot();
+        if(allowButtonHold) groundShooting = Input.GetKey(KeyCode.Mouse1);
+        else groundShooting = Input.GetKeyDown(KeyCode.Mouse1);
+
+        if(readyToShoot && (airShooting || groundShooting)) {
+            shoot(airShooting);
         }
     }
 
-    private void shoot() {
+    private void shoot(bool isAirShot) {
         readyToShoot = false;
 
         Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
@@ -62,6 +66,7 @@ public class Gun : MonoBehaviour
 
         GameObject currentBullet = Instantiate(bullet, attackPoint.position, Quaternion.identity);
         currentBullet.GetComponent<Bullet>().gun = this;
+        currentBullet.GetComponent<Bullet>().isAirBullet = isAirShot;
         currentBullet.transform.forward = direction.normalized;
 
         currentBullet.GetComponent<Rigidbody>().AddForce(direction.normalized * shootForce, ForceMode.Impulse);

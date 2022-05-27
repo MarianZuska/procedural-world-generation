@@ -9,6 +9,7 @@ public class Bullet : MonoBehaviour
 
     [HideInInspector]
     public Gun gun;
+    public bool isAirBullet = true;
     //public LayerMask whatIsEnemies;
 
     [Range(0,1)]
@@ -23,6 +24,7 @@ public class Bullet : MonoBehaviour
     private int collisions;
     private PhysicMaterial physicsMat;
 
+
     private void Update() {
         maxLifetime -= Time.deltaTime;
         if(collisions > maxCollisions || maxLifetime <= 0) explode();
@@ -34,7 +36,8 @@ public class Bullet : MonoBehaviour
 
         if(explosion != null) Instantiate(explosion, transform.position, Quaternion.identity);
 
-        gun.explosionPoints.Add(transform.position);
+        if(isAirBullet) gun.airExplosionPoints.Add(transform.position);
+        else gun.groundExplosionPoints.Add(transform.position);
         
         Destroy(gameObject);
         Invoke("DestroySelf", 0.01f);
