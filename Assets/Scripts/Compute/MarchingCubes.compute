@@ -16,9 +16,9 @@ float3 minCornerPos;
 float3 offsetVec;
 float worldZoom;
 
-//int circlesCount;
-int circleRadius;
-float3 circle;
+int sphereCount;
+int sphereRadius;
+float3 sphere;
 
 struct Triangle {
 	float3 vertexC;
@@ -27,18 +27,20 @@ struct Triangle {
 };
 
 AppendStructuredBuffer<Triangle> triangles;
-
-//AppendStructuredBuffer<float3> circles;
-//RWStructuredBuffer<float4> points;
+StructuredBuffer<float3> spheres;
 
 //samples a point in 3d space, returns surface value
 float samplePoint(float3 pos) {
+	if(sphereCount > 0) {
+		for(int i=0; i<sphereCount; i++) {
+			sphere = spheres[i];
+			float distToCircle2 = (pos.x - sphere.x)*(pos.x - sphere.x) + (pos.y - sphere.y)*(pos.y - sphere.y) + (pos.z - sphere.z)*(pos.z - sphere.z);
+			float sphereRadius2 = sphereRadius * sphereRadius;
 
-	float distToCircle2 = (pos.x - circle.x)*(pos.x - circle.x) + (pos.y - circle.y)*(pos.y - circle.y) + (pos.z - circle.z)*(pos.z - circle.z);
-	float circleRadius2 = circleRadius * circleRadius;
-
-	if (distToCircle2 <= circleRadius2) {
-		return 1 - (distToCircle2/circleRadius2 * 2 - 1);
+			if (distToCircle2 <= sphereRadius2) {
+				return 1 - (distToCircle2/sphereRadius2 * 2 - 1);
+			}
+		}
 	}
 
 	pos /= numPointsPerAxis;
@@ -53,7 +55,6 @@ int index(float3 pos) {
 	int cubeIndex = 0;
 
 	for (int i = 0; i < 8; i++) {
-		//float val = Perlin3D(point + cornerOffsets[i]);
 		float val = samplePoint(pos + cornerOffsets[i]);
 		if (val < surfaceLevel) {
 			//set i'th bit if below surface
@@ -67,17 +68,10 @@ int index(float3 pos) {
 [numthreads(8,8,8)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-	/*if (id.x >= numPointsPerAxis - 1 || id.y >= numPointsPerAxis - 1 || id.z >= numPointsPerAxis - 1) {
-		return;
-	}*/
-
-	//draw one cube
 	int x = id.x;
 	int y = id.y;
 	int z = id.z;
 
-
-	//minCornerPos = minSectorPos + new float3(x, y, z);#
 	minCornerPos = minSectorPos + float3(x, y, z);
 
 	//lookup table index
@@ -94,7 +88,6 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 			int edgeIndex = triangleTable[lookupIndex][nextVertIndex + i];
 			float3 vert1 = minCornerPos + edgeVertexOffsets[edgeIndex][0];
 			float3 vert2 = minCornerPos + edgeVertexOffsets[edgeIndex][1];
-
 
 			//interpolate:
 			float val1 = samplePoint(vert2);

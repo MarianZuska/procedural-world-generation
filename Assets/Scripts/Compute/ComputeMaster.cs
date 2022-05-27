@@ -19,7 +19,7 @@ public class ComputeMaster : MonoBehaviour
     public float perlinZoom = 2f;
     //public int worldScale = 1;
 
-    public int circleRadius = 10;
+    public int sphereRadius = 10;
 
     public Color lightColor;
     public Color darkColor;
@@ -32,18 +32,18 @@ public class ComputeMaster : MonoBehaviour
     private float[,,] points;
     private int numVoxelsPerAxis;
     private bool firstFrame;
-    private int circlesCount = 0;
+    private int sphereCount = 0;
     private ComputeBuffer trianglesBuffer;
-    private ComputeBuffer circleBuffer;
+    private ComputeBuffer sphereBuffer;
 
-    private List<Vector3> circles;
+    private List<Vector3> spheres;
 
     private GameObject curMeshHolder;
     private Vector3 offsetVec;
     private Vector3 minCornerPos;
     private Vector3 currentSector;
     private int maxTriangleCount;
-    private Vector3 circle;
+    private Vector3 sphere;
 
     private List<Chunk> meshHolders;
 
@@ -98,25 +98,21 @@ public class ComputeMaster : MonoBehaviour
 
         Debug.Log(maxTriangleCount * 36);
 
+        spheres = new List<Vector3>();
         curMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
 
         curMeshHolder.GetComponent<MeshFilter>().sharedMesh = new Mesh();
-
+ 
         currentSector = Vector3.zero;
 
-
         meshHolders = new List<Chunk>();
-        for (int x = -2; x <= 2; x++)
-        {
-            for (int y = -2; y <= 2; y++)
-            {
-                for (int z = -2; z <= 2; z++)
-                {
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -2; z <= 2; z++) {
                     GameObject tmpMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
                     Mesh curMesh = new Mesh();
                     tmpMeshHolder.GetComponent<MeshFilter>().sharedMesh = curMesh;
                     tmpMeshHolder.GetComponent<MeshCollider>().sharedMesh = curMesh;
-                    ///////////////////////////////// DOESNT WORK
                     Chunk cur = new Chunk();
                     cur.meshHolder = tmpMeshHolder;
                     cur.position = Vector3.zero;
@@ -220,7 +216,9 @@ public class ComputeMaster : MonoBehaviour
                         trianglesBuffer.Release();
                         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
                         trianglesBuffer.SetCounterValue(0);
-
+                        if(sphereBuffer != null) {
+                            sphereBuffer.Release();
+                        }
                     }
                     meshHolderIndex++;
                 }
@@ -235,13 +233,14 @@ public class ComputeMaster : MonoBehaviour
 
         marchingShader.SetBuffer(0, "triangles", trianglesBuffer);
 
-        /*circleBuffer = new ComputeBuffer(circles.Count, sizeof(float)*3, ComputeBufferType.Append);
-        trianglesBuffer.SetData(circles);
-        marchingShader.SetBuffer(0, "circles", circleBuffer);
+        sphereBuffer = new ComputeBuffer(spheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
+        sphereBuffer.SetData(spheres);
+        marchingShader.SetBuffer(0, "spheres", sphereBuffer);
 
-        marchingShader.SetInt("circlesCount", circles.Count);*/
-        marchingShader.SetFloats("circle", new float[] { circle.x, circle.y, circle.z });
-        marchingShader.SetInt("circleRadius", circleRadius);
+        marchingShader.SetInt("sphereCount", spheres.Count);
+
+        marchingShader.SetFloats("sphere", new float[] { sphere.x, sphere.y, sphere.z });
+        marchingShader.SetInt("sphereRadius", sphereRadius);
         marchingShader.SetInt("numPointsPerAxis", numPointsPerAxis);
         marchingShader.SetFloat("surfaceLevel", surfaceLevel);
         marchingShader.SetFloat("perlinZoom", perlinZoom);
@@ -304,17 +303,12 @@ public class ComputeMaster : MonoBehaviour
     }
 
     private int getMeshIndex(List<Chunk> meshList, Vector3 targetCoordinate) {
-        float minDist = 100;
         int equalMeshIndex = -1;
         for (int i = 0; i < meshList.Count; i++)
         {
             if (meshList[i].used)
             {
                 var dist = Vector3.Distance(meshList[i].position, targetCoordinate);
-                if (dist < minDist)
-                {
-                    minDist = dist;
-                }
 
                 if (dist < 0.1f && meshList[i].used)
                 {
@@ -329,9 +323,6 @@ public class ComputeMaster : MonoBehaviour
                     break;
                 }
             }
-
-
-            //Debug.Log("lowest dist: " + minDist);
         }
 
         return equalMeshIndex;
@@ -347,8 +338,9 @@ public class ComputeMaster : MonoBehaviour
             }
     }
     private void addCircle() {
-        circlesCount += 1;
-        circle = player.position - new Vector3(10, 10, 10);
+        sphereCount += 1;
+        sphere = player.position - new Vector3(10, 10, 10);
+        spheres.Add(sphere);
         firstFrame = true;
     }
 
@@ -363,7 +355,8 @@ public class ComputeMaster : MonoBehaviour
     private int getNumberOfTris() {
         ComputeBuffer tmpBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
 
-        // Only way i could find to get the number of items in a buffer without trying to read every single item one by one
+        // Only way i could find to get the number of items in a buffer without trying to read every 
+        // single item one by one
         ComputeBuffer.CopyCount(trianglesBuffer, tmpBuffer, 0);
         int[] triCountArray = { 0 };
         tmpBuffer.GetData(triCountArray);

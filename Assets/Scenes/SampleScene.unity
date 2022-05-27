@@ -492,7 +492,7 @@ MonoBehaviour:
   offsetY: 10
   offsetZ: 10
   perlinZoom: 1
-  circleRadius: 12
+  sphereRadius: 5
   lightColor: {r: 0.501246, g: 0.6971917, b: 0.754717, a: 0}
   darkColor: {r: 0.20334639, g: 0.22555265, b: 0.3018868, a: 0}
   meshHolder: {fileID: 1475059643082629721, guid: 501bd06923e0b604fb75e1d28a2bf16e,
