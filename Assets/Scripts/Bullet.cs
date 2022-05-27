@@ -6,6 +6,9 @@ public class Bullet : MonoBehaviour
 {
     public Rigidbody rb;
     public GameObject explosion;
+
+    [HideInInspector]
+    public Gun gun;
     //public LayerMask whatIsEnemies;
 
     [Range(0,1)]
@@ -15,23 +18,26 @@ public class Bullet : MonoBehaviour
     public int maxCollisions;
     public float maxLifetime;
     public bool explodeOnTouch = true;
-    
-    int collisions;
-    PhysicMaterial physicsMat;
 
+    private bool hasExploded = false;
+    private int collisions;
+    private PhysicMaterial physicsMat;
 
     private void Update() {
-        if(collisions > maxCollisions) explode();
-
         maxLifetime -= Time.deltaTime;
-        if(maxLifetime <= 0) explode();
-
+        if(collisions > maxCollisions || maxLifetime <= 0) explode();
     }
 
     private void explode() {
+        if(hasExploded) return;
+        hasExploded = true;
+
         if(explosion != null) Instantiate(explosion, transform.position, Quaternion.identity);
 
-        Invoke("DestroySelf", 0.05f);
+        gun.explosionPoints.Add(transform.position);
+        
+        Destroy(gameObject);
+        Invoke("DestroySelf", 0.01f);
     }
 
     private void DestroySelf() {
@@ -40,7 +46,6 @@ public class Bullet : MonoBehaviour
 
     private void OnCollisionEnter(Collision other) {
         collisions++;
-
     }
 
     private void Setup() {
@@ -56,6 +61,6 @@ public class Bullet : MonoBehaviour
 
     private void OnDrawGizmosSelected() {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, 3);
+        Gizmos.DrawWireSphere(transform.position, 20);
     }
 }

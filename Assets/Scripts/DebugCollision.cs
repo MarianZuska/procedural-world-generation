@@ -12,12 +12,11 @@ public class DebugCollision : MonoBehaviour
 
     private void OnCollisionEnter(Collision other)
     {
-        Debug.Log("COLLIDES");
-
+        //Debug.Log("COLLIDES");
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("TRIGGERS");
+        //Debug.Log("TRIGGERS");
     }
 }

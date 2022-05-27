@@ -466,7 +466,7 @@ GameObject:
   - component: {fileID: 957477119}
   m_Layer: 0
   m_Name: _Creator
-  m_TagString: Untagged
+  m_TagString: TerrainGenerator
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -484,7 +484,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   marchingShader: {fileID: 7200000, guid: 6d68dd8a67055524db20948919e635cb, type: 3}
-  player: {fileID: 9777202}
+  playerMeshTransform: {fileID: 9777202}
+  gun: {fileID: 1274292676}
   surfaceLevel: -0.12
   worldZoom: 1
   numPointsPerAxis: 16
@@ -1023,7 +1024,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bullet: {fileID: 3189715307134981341, guid: 44526bc3ab226e84cbec965e3a00d51f, type: 3}
   shootForce: 80
-  timeBetweenShooting: 0.1
+  timeBetweenShooting: 0.5
   spread: 1
   timeBetweenShots: 0
   allowButtonHold: 1
@@ -1032,6 +1033,7 @@ MonoBehaviour:
   muzzleFlash: {fileID: 0}
   rigidbody: {fileID: 1274292675}
   recoilForce: 0
+  explosionPoints: []
 --- !u!1 &1302413215
 GameObject:
   m_ObjectHideFlags: 0

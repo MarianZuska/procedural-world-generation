@@ -10,17 +10,18 @@ public class Gun : MonoBehaviour
 
     public float timeBetweenShooting, spread, timeBetweenShots;
     public bool allowButtonHold;
-    
 
     public Camera cam;
     public Transform attackPoint;
     public GameObject muzzleFlash;
 
-    public Rigidbody rigidbody;
     public float recoilForce;
 
     private bool readyToShoot, shooting;
     private bool allowInvoke = true;
+
+    [HideInInspector]
+    public List<Vector3> explosionPoints = new List<Vector3>();
 
     private void Awake() {
         readyToShoot = true;
@@ -60,11 +61,12 @@ public class Gun : MonoBehaviour
         Vector3 direction = directionNoSpread + new Vector3(xSpread, ySpread, 0);
 
         GameObject currentBullet = Instantiate(bullet, attackPoint.position, Quaternion.identity);
+        currentBullet.GetComponent<Bullet>().gun = this;
         currentBullet.transform.forward = direction.normalized;
 
         currentBullet.GetComponent<Rigidbody>().AddForce(direction.normalized * shootForce, ForceMode.Impulse);
 
-        rigidbody.AddForce(-direction.normalized * recoilForce, ForceMode.Impulse);
+        //rb.AddForce(-direction.normalized * recoilForce, ForceMode.Impulse);
 
         if(muzzleFlash != null) {
             Instantiate(muzzleFlash, attackPoint.position, Quaternion.identity);

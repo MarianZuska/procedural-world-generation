@@ -6,7 +6,8 @@ public class ComputeMaster : MonoBehaviour
 {
     public ComputeShader marchingShader;
 
-    public Transform player;
+    public Transform playerMeshTransform;
+    public Gun gun;
     public float surfaceLevel;
 
     [Range(1, 1)]
@@ -35,6 +36,7 @@ public class ComputeMaster : MonoBehaviour
     private int sphereCount = 0;
     private ComputeBuffer trianglesBuffer;
     private ComputeBuffer sphereBuffer;
+    private ComputeBuffer numTrisBuffer;
 
     private List<Vector3> spheres;
 
@@ -43,7 +45,6 @@ public class ComputeMaster : MonoBehaviour
     private Vector3 minCornerPos;
     private Vector3 currentSector;
     private int maxTriangleCount;
-    private Vector3 sphere;
 
     private List<Chunk> meshHolders;
 
@@ -87,7 +88,6 @@ public class ComputeMaster : MonoBehaviour
         public int[] triangles;
     }
 
-
     void Start()
     {
         mainCamera = Camera.main;
@@ -128,21 +128,34 @@ public class ComputeMaster : MonoBehaviour
     {
         startingTime = Time.realtimeSinceStartup;
 
-        Vector3 playerPosition = player.position;
+        Vector3 playerPosition = playerMeshTransform.position;
         Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis) - numPointsPerAxis,
                                          playerPosition.y - mod(playerPosition.y, numPointsPerAxis) - numPointsPerAxis,
                                          playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis);
-        bool sectorChanged = firstFrame || Vector3.Distance(currentSector, nextSector) >= 0.2f;
+
+        
+        for(int i = 0; i<gun.explosionPoints.Count; i++) {
+            if(!spheres.Contains(gun.explosionPoints[i] - new Vector3(10, 10, 10))) {
+                spheres.Add(gun.explosionPoints[i] - new Vector3(10, 10, 10));
+                clearMeshes();
+            }
+        }
+        Debug.Log(spheres.Count);
+        Debug.Log(gun.explosionPoints.Count);
+        Debug.Log(firstFrame);
 
         if (Input.GetKeyDown(KeyCode.Space)) { 
-            addCircle(); 
+            createSphere(playerMeshTransform.position - new Vector3(10, 10, 10)); 
             clearMeshes();
         }
+
+        bool sectorChanged = firstFrame || Vector3.Distance(currentSector, nextSector) >= 0.2f;
 
         if (sectorChanged) march(nextSector);
     }
 
     private void march(Vector3 nextSector) {
+
         firstFrame = false;
         currentSector = nextSector;
 
@@ -166,6 +179,9 @@ public class ComputeMaster : MonoBehaviour
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
+                                
+                    
+
                     Vector3 targetCoordinate = currentSector + new Vector3(
                         numPointsPerAxis * x,
                         numPointsPerAxis * y,
@@ -177,6 +193,8 @@ public class ComputeMaster : MonoBehaviour
                         skippedCount++;
                         meshHolders.Add(oldChunks[meshIndex]);
                     } else {
+                        numTrisBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Counter);
+                        numTrisBuffer.SetCounterValue(0);
 
                         //Run shader
                         int numThreadsPerAxis = Mathf.CeilToInt(numPointsPerAxis / 8.0f);
@@ -205,20 +223,21 @@ public class ComputeMaster : MonoBehaviour
                             triangles[3 * i + 1] = 3 * i + 1;
                             triangles[3 * i + 2] = 3 * i + 2;
                         }
-
+                        
                         Mesh mesh = createMesh(vertices, triangles);
                         Chunk chunk = createChunk(mesh, targetCoordinate);
                         meshHolders.Add(chunk);
 
                         timeAfterMeshAssembly = Time.realtimeSinceStartup;
 
-                        //cleanup
+                        //Cleanup
                         trianglesBuffer.Release();
                         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
                         trianglesBuffer.SetCounterValue(0);
                         if(sphereBuffer != null) {
                             sphereBuffer.Release();
                         }
+                        numTrisBuffer.Dispose();
                     }
                     meshHolderIndex++;
                 }
@@ -226,20 +245,31 @@ public class ComputeMaster : MonoBehaviour
         }
         destroyUnusedMeshes(oldChunks);
         
-        logPerformance(true, startingTime, timeBeforeShader, timeAfterShader, timeAfterGettingShaderData, timeAfterMeshAssembly);
+        //disabled
+        logPerformance(false, startingTime, timeBeforeShader, timeAfterShader, timeAfterGettingShaderData, timeAfterMeshAssembly);
     }
 
     private void SetShaderParameters(Vector3 minCorner) {
-
         marchingShader.SetBuffer(0, "triangles", trianglesBuffer);
+        marchingShader.SetBuffer(0, "numTris", numTrisBuffer);
 
-        sphereBuffer = new ComputeBuffer(spheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
-        sphereBuffer.SetData(spheres);
+        //var allSpheres = new Vector3[gun.explosionPoints.Count + spheres.Count];
+        //for(int i = 0; i<spheres.Count; i++) {
+        //    allSpheres[i]=spheres[i];
+        //}
+        //for(int i = 0; i<gun.explosionPoints.Count; i++) {
+        //    allSpheres[i+spheres.Count]=gun.explosionPoints[i] - new Vector3(10,10,10);
+        //}
+
+        //if(spheres.Count > 0) print("last sphere space: " + spheres[spheres.Count-1]);
+        //if(gun.explosionPoints.Count > 0) print("last sphere shot: " + (gun.explosionPoints[gun.explosionPoints.Count - 1]  - new Vector3(10,10,10)));
+
+        sphereBuffer = new ComputeBuffer(gun.explosionPoints.Count + spheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
+        sphereBuffer.SetData((Vector3[]) spheres.ToArray());
         marchingShader.SetBuffer(0, "spheres", sphereBuffer);
 
-        marchingShader.SetInt("sphereCount", spheres.Count);
+        marchingShader.SetInt("sphereCount", gun.explosionPoints.Count + spheres.Count);
 
-        marchingShader.SetFloats("sphere", new float[] { sphere.x, sphere.y, sphere.z });
         marchingShader.SetInt("sphereRadius", sphereRadius);
         marchingShader.SetInt("numPointsPerAxis", numPointsPerAxis);
         marchingShader.SetFloat("surfaceLevel", surfaceLevel);
@@ -252,7 +282,7 @@ public class ComputeMaster : MonoBehaviour
         pos[2] = minCorner.z;
         marchingShader.SetFloats("minSectorPos", pos);
         marchingShader.SetFloats("offsetVec", new float[] { offsetX, offsetY, offsetZ });
-    }
+    }   
 
     private Mesh createMesh(Vector3[] vertices, int[] triangles) {
         Mesh mesh = new Mesh();
@@ -337,11 +367,11 @@ public class ComputeMaster : MonoBehaviour
                 }
             }
     }
-    private void addCircle() {
+    
+    public void createSphere(Vector3 sphereCenter) {
         sphereCount += 1;
-        sphere = player.position - new Vector3(10, 10, 10);
+        var sphere = sphereCenter;
         spheres.Add(sphere);
-        firstFrame = true;
     }
 
     private void clearMeshes() {
@@ -350,17 +380,15 @@ public class ComputeMaster : MonoBehaviour
             Destroy(meshHolders[i].meshHolder);
         }
         meshHolders = new List<Chunk>();
+        firstFrame = true;
     }
 
     private int getNumberOfTris() {
         ComputeBuffer tmpBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Raw);
-
-        // Only way i could find to get the number of items in a buffer without trying to read every 
-        // single item one by one
-        ComputeBuffer.CopyCount(trianglesBuffer, tmpBuffer, 0);
-        int[] triCountArray = { 0 };
+        int[] triCountArray = new int[1] {0};
+        ComputeBuffer.CopyCount(numTrisBuffer, tmpBuffer, 0);
         tmpBuffer.GetData(triCountArray);
-        tmpBuffer.Release();
+        tmpBuffer.Dispose();
 
         return triCountArray[0];
     }
