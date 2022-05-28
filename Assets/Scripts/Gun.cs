@@ -23,9 +23,11 @@ public class Gun : MonoBehaviour
     [HideInInspector]
     public List<Vector3> airExplosionPoints = new List<Vector3>();
     public List<Vector3> groundExplosionPoints = new List<Vector3>();
+    public ComputeMaster computeMaster;
 
-    private void Awake() {
+    private void Start() {
         readyToShoot = true;
+        computeMaster = GameObject.FindGameObjectWithTag("TerrainGenerator").GetComponent<ComputeMaster>();
     }
 
     private void Update() {
@@ -67,6 +69,8 @@ public class Gun : MonoBehaviour
         GameObject currentBullet = Instantiate(bullet, attackPoint.position, Quaternion.identity);
         currentBullet.GetComponent<Bullet>().gun = this;
         currentBullet.GetComponent<Bullet>().isAirBullet = isAirShot;
+        currentBullet.GetComponent<Bullet>().computeMaster = computeMaster;
+
         currentBullet.transform.forward = direction.normalized;
 
         currentBullet.GetComponent<Rigidbody>().AddForce(direction.normalized * shootForce, ForceMode.Impulse);

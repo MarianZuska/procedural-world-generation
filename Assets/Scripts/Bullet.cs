@@ -10,6 +10,7 @@ public class Bullet : MonoBehaviour
     [HideInInspector]
     public Gun gun;
     public bool isAirBullet = true;
+    public ComputeMaster computeMaster;
     //public LayerMask whatIsEnemies;
 
     [Range(0,1)]
@@ -36,14 +37,13 @@ public class Bullet : MonoBehaviour
 
         if(explosion != null) Instantiate(explosion, transform.position, Quaternion.identity);
 
-        if(isAirBullet) gun.airExplosionPoints.Add(transform.position);
-        else gun.groundExplosionPoints.Add(transform.position);
+        if(computeMaster != null) {
+            Debug.Log("Explosion");
+            computeMaster.createSphere(transform.position, isAirBullet, true);
+        }
+        //if(isAirBullet) gun.airExplosionPoints.Add(transform.position);
+        //else gun.groundExplosionPoints.Add(transform.position);
         
-        Destroy(gameObject);
-        Invoke("DestroySelf", 0.01f);
-    }
-
-    private void DestroySelf() {
         Destroy(gameObject);
     }
 

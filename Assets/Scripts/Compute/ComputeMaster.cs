@@ -35,12 +35,10 @@ public class ComputeMaster : MonoBehaviour
     private bool firstFrame;
     private int sphereCount = 0;
     private ComputeBuffer trianglesBuffer;
-    private ComputeBuffer airSphereBuffer;
-    private ComputeBuffer groundSphereBuffer;
+    private ComputeBuffer spheresBuffer;
     private ComputeBuffer numTrisBuffer;
 
-    private List<Vector3> airSpheres;
-    private List<Vector3> groundSpheres;
+    private List<Sphere> spheres;
 
     private GameObject curMeshHolder;
     private Vector3 offsetVec;
@@ -90,6 +88,14 @@ public class ComputeMaster : MonoBehaviour
         public int[] triangles;
     }
 
+    struct Sphere {
+        public float x;
+        public float y;
+        public float z;
+        public int surfaceValue;
+        public int index;
+    }
+
     void Start()
     {
         mainCamera = Camera.main;
@@ -100,15 +106,13 @@ public class ComputeMaster : MonoBehaviour
 
         Debug.Log(maxTriangleCount * 36);
 
-        airSpheres = new List<Vector3>();
-        groundSpheres = new List<Vector3>();
+        spheres = new List<Sphere>();
 
         curMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
 
         curMeshHolder.GetComponent<MeshFilter>().sharedMesh = new Mesh();
  
         currentSector = Vector3.zero;
-
         meshHolders = new List<Chunk>();
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
@@ -137,29 +141,13 @@ public class ComputeMaster : MonoBehaviour
                                          playerPosition.y - mod(playerPosition.y, numPointsPerAxis) - numPointsPerAxis,
                                          playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis);
 
-        
-        // shot spheres
-        for(int i = 0; i<gun.airExplosionPoints.Count; i++) {
-            if(!airSpheres.Contains(gun.airExplosionPoints[i] - new Vector3(10, 10, 10))) {
-                airSpheres.Add(gun.airExplosionPoints[i] - new Vector3(10, 10, 10));
-                clearMeshes();
-            }
-        }
-        for(int i = 0; i<gun.groundExplosionPoints.Count; i++) {
-            if(!groundSpheres.Contains(gun.groundExplosionPoints[i] - new Vector3(10, 10, 10))) {
-                groundSpheres.Add(gun.groundExplosionPoints[i] - new Vector3(10, 10, 10));
-                clearMeshes();
-            }
-        }
-        Debug.Log("AirSpheres: " + airSpheres.Count);
-        Debug.Log("GroundSpheres: " + groundSpheres.Count);
-
         //spheres done by pressing space (to be removed)
         if (Input.GetKeyDown(KeyCode.Space)) { 
-            createSphere(playerMeshTransform.position - new Vector3(10, 10, 10)); 
+            createSphere(playerMeshTransform.position, true, true);
+        }
+        if(firstFrame) {
             clearMeshes();
         }
-
         bool sectorChanged = firstFrame || Vector3.Distance(currentSector, nextSector) >= 0.2f;
 
         if (sectorChanged) march(nextSector);
@@ -191,12 +179,10 @@ public class ComputeMaster : MonoBehaviour
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
                                 
-                    
-
                     Vector3 targetCoordinate = currentSector + new Vector3(
                         numPointsPerAxis * x,
                         numPointsPerAxis * y,
-                        numPointsPerAxis * z);// /worldZoom;
+                        numPointsPerAxis * z);// / worldZoom;
 
                     int meshIndex = getMeshIndex(oldChunks, targetCoordinate);
 
@@ -245,11 +231,8 @@ public class ComputeMaster : MonoBehaviour
                         trianglesBuffer.Release();
                         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
                         trianglesBuffer.SetCounterValue(0);
-                        if(airSphereBuffer != null) {
-                            airSphereBuffer.Release();
-                        }
-                        if(groundSphereBuffer != null) {
-                            groundSphereBuffer.Release();
+                        if(spheresBuffer != null) {
+                            spheresBuffer.Release();
                         }
                         numTrisBuffer.Dispose();
                     }
@@ -267,27 +250,13 @@ public class ComputeMaster : MonoBehaviour
         marchingShader.SetBuffer(0, "triangles", trianglesBuffer);
         marchingShader.SetBuffer(0, "numTris", numTrisBuffer);
 
-        //var allSpheres = new Vector3[gun.explosionPoints.Count + spheres.Count];
-        //for(int i = 0; i<spheres.Count; i++) {
-        //    allSpheres[i]=spheres[i];
-        //}
-        //for(int i = 0; i<gun.explosionPoints.Count; i++) {
-        //    allSpheres[i+spheres.Count]=gun.explosionPoints[i] - new Vector3(10,10,10);
-        //}
+        // Booleans are 4 bytes in HLSL so sizeof(int) is used instead.
+        spheresBuffer = new ComputeBuffer(spheres.Count + 1, sizeof(float)*3 + sizeof(int) + sizeof(int), ComputeBufferType.Structured);
+        spheresBuffer.SetData((Sphere[]) spheres.ToArray());
 
-        //if(spheres.Count > 0) print("last sphere space: " + spheres[spheres.Count-1]);
-        //if(gun.explosionPoints.Count > 0) print("last sphere shot: " + (gun.explosionPoints[gun.explosionPoints.Count - 1]  - new Vector3(10,10,10)));
+        marchingShader.SetBuffer(0, "spheres", spheresBuffer);
 
-        airSphereBuffer = new ComputeBuffer(airSpheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
-        airSphereBuffer.SetData((Vector3[]) airSpheres.ToArray());
-        groundSphereBuffer = new ComputeBuffer(groundSpheres.Count + 1, sizeof(float)*3, ComputeBufferType.Structured);
-        groundSphereBuffer.SetData((Vector3[]) groundSpheres.ToArray());
-
-        marchingShader.SetBuffer(0, "airSpheres", airSphereBuffer);
-        marchingShader.SetBuffer(0, "groundSpheres", groundSphereBuffer);
-
-        marchingShader.SetInt("airSphereCount", airSpheres.Count);
-        marchingShader.SetInt("groundSphereCount", groundSpheres.Count);
+        marchingShader.SetInt("sphereCount", spheres.Count);
 
         marchingShader.SetInt("sphereRadius", sphereRadius);
         marchingShader.SetInt("numPointsPerAxis", numPointsPerAxis);
@@ -387,10 +356,19 @@ public class ComputeMaster : MonoBehaviour
             }
     }
     
-    public void createSphere(Vector3 sphereCenter) {
+    public void createSphere(Vector3 sphereCenter, bool isAirSphere, bool clearTerrain) {
         sphereCount += 1;
-        var sphere = sphereCenter;
-        airSpheres.Add(sphere);
+        Sphere sphere = new Sphere();
+        Debug.Log("offset: " + offsetVec);
+        sphereCenter = sphereCenter - new Vector3(10, 10, 10);
+        sphere.x = sphereCenter.x;
+        sphere.y = sphereCenter.y;
+        sphere.z = sphereCenter.z;
+        sphere.surfaceValue = isAirSphere ? 1 : -1;
+        sphere.index = spheres.Count;
+        spheres.Add(sphere);
+
+        if(clearTerrain) firstFrame = true;;
     }
 
     private void clearMeshes() {
@@ -399,7 +377,6 @@ public class ComputeMaster : MonoBehaviour
             Destroy(meshHolders[i].meshHolder);
         }
         meshHolders = new List<Chunk>();
-        firstFrame = true;
     }
 
     private int getNumberOfTris() {

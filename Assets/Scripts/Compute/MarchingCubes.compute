@@ -11,8 +11,7 @@ float3 minCornerPos;
 float3 offsetVec;
 float worldZoom;
 
-int airSphereCount;
-int groundSphereCount;
+int sphereCount;
 int sphereRadius;
 
 struct Triangle {
@@ -21,43 +20,46 @@ struct Triangle {
 	float3 vertexA;
 };
 
+struct Sphere {
+	float3 position;
+	int surfaceValue;
+	int index;
+};
+
 AppendStructuredBuffer<Triangle> triangles;
-StructuredBuffer<float3> airSpheres;
-StructuredBuffer<float3> groundSpheres;
+StructuredBuffer<Sphere> spheres;
 RWStructuredBuffer<int> numTris;
 
 //checks if the given point is inside on of the spheres
-bool insideAnySphere(float3 pos, int sphereCount, StructuredBuffer<float3> spheres) {
+int collidingSphere(float3 pos) {
 	if(sphereCount > 0) {
-		for(int i=0; i<sphereCount; i++) {
-			float3 sphere = spheres[i];
-			float distToCircle2 = (pos.x - sphere.x)*(pos.x - sphere.x) + (pos.y - sphere.y)*(pos.y - sphere.y) + (pos.z - sphere.z)*(pos.z - sphere.z);
+		for(int i=sphereCount-1; i>=0; i--) {
+			Sphere sphere = spheres[i];
+			float3 spos = sphere.position;
+			float distToCircle2 = (pos.x - spos.x)*(pos.x - spos.x) + (pos.y - spos.y)*(pos.y - spos.y) + (pos.z - spos.z)*(pos.z - spos.z);
 			float sphereRadius2 = sphereRadius * sphereRadius;
 
 			if (distToCircle2 <= sphereRadius2) {
-				return true;
+				return sphere.surfaceValue;
 			}
 		}
 	}
 
-	return false;
+	return -2;
 }
 
 //samples a point in 3d space, returns surface value
 float samplePoint(float3 pos) {
-	
-	// note that currently the airSpheres are checked first which means that a point whithin an airSphere can never 
-	// become terrain again even if it is shot with a ground sphere
-	if(insideAnySphere(pos, airSphereCount, airSpheres)) return 1;
-	if(insideAnySphere(pos, groundSphereCount, groundSpheres)) return -1;
-
-	pos /= numPointsPerAxis;
-	pos *= perlinZoom;
-	pos += offsetVec;
-
-	return snoise(pos);
+	int sphereVal = collidingSphere(pos);
+	if(sphereVal > -2) {
+		return sphereVal;
+	} else {
+		pos /= numPointsPerAxis;
+		pos *= perlinZoom;
+		pos += offsetVec;
+		return snoise(pos);
+	}
 }
-
 
 //index of the curent corner configuration in the marchtable
 int index(float3 pos) {
