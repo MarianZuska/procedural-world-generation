@@ -41,7 +41,6 @@ public class ComputeMaster : MonoBehaviour
     private List<Sphere> spheres;
 
     private GameObject curMeshHolder;
-    private Vector3 offsetVec;
     private Vector3 minCornerPos;
     private Vector3 currentSector;
     private int maxTriangleCount;
@@ -121,6 +120,7 @@ public class ComputeMaster : MonoBehaviour
                     Mesh curMesh = new Mesh();
                     tmpMeshHolder.GetComponent<MeshFilter>().sharedMesh = curMesh;
                     tmpMeshHolder.GetComponent<MeshCollider>().sharedMesh = curMesh;
+                    tmpMeshHolder.transform.localScale = new Vector3(1f,1f,1f);
                     Chunk cur = new Chunk();
                     cur.meshHolder = tmpMeshHolder;
                     cur.position = Vector3.zero;
@@ -285,7 +285,7 @@ public class ComputeMaster : MonoBehaviour
         mainCamera.backgroundColor = darkColor;
         Color[] colors = new Color[vertices.Length];
         for (int i = 0; i < vertices.Length; i++)
-            colors[i] = Color.Lerp(lightColor, darkColor, Mathf.PerlinNoise(vertices[i][0]/5f, vertices[i][1]/5f)*2f - 0.5f);
+            colors[i] = Color.Lerp(lightColor, darkColor, Perlin3D(vertices[i]/5f)*2f - 0.5f);
         mesh.colors = colors;
 
         return mesh;
@@ -297,6 +297,7 @@ public class ComputeMaster : MonoBehaviour
         chunk.used = true;
         chunk.position = pos;
         chunk.meshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
+        chunk.meshHolder.transform.localScale = new Vector3(1f,1f,1f);
 
         MeshFilter meshFilter = chunk.meshHolder.GetComponent<MeshFilter>();
         meshFilter.sharedMesh = mesh;
@@ -347,20 +348,15 @@ public class ComputeMaster : MonoBehaviour
     }
 
     private void destroyUnusedMeshes(List<Chunk> chunks) {
-        for (int i = 0; i < chunks.Count; i++)
-            {
-                if (chunks[i].destroy)
-                {
-                    Destroy(chunks[i].meshHolder);
-                }
-            }
+        for (int i = 0; i < chunks.Count; i++){
+            if (chunks[i].destroy) Destroy(chunks[i].meshHolder);
+        }
     }
     
     public void createSphere(Vector3 sphereCenter, bool isAirSphere, bool clearTerrain) {
         sphereCount += 1;
         Sphere sphere = new Sphere();
-        Debug.Log("offset: " + offsetVec);
-        sphereCenter = sphereCenter - new Vector3(10, 10, 10);
+        sphereCenter = sphereCenter - new Vector3(offsetX, offsetY, offsetZ);
         sphere.x = sphereCenter.x;
         sphere.y = sphereCenter.y;
         sphere.z = sphereCenter.z;
@@ -408,5 +404,22 @@ public class ComputeMaster : MonoBehaviour
         Debug.Log("Time in mesh assembly: " + (endingTime - timeAfterGettingShaderData));
         Debug.Log("-------------------");
         Debug.Log("");
+    }
+
+    private float Perlin3D(Vector3 vec) {
+        float x = vec.x;
+        float y = vec.y;
+        float z = vec.z;
+
+        float AB = Mathf.PerlinNoise(x,y);
+        float BC = Mathf.PerlinNoise(y,z);
+        float AC = Mathf.PerlinNoise(x,z);
+        
+        float BA = Mathf.PerlinNoise(y,x);
+        float CB = Mathf.PerlinNoise(z,y);
+        float CA = Mathf.PerlinNoise(z,x);
+
+        float ABC = AB + BC + AC + BA + CB + CA;
+        return ABC/6;
     }
 }
