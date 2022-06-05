@@ -10,8 +10,7 @@ public class ComputeMaster : MonoBehaviour
     public Gun gun;
     public float surfaceLevel;
 
-    [Range(1, 1)]
-    public float worldZoom = 1f;
+    public float worldZoom = 8f;
 
     public int numPointsPerAxis;
     public float offsetX = 0f;
@@ -98,12 +97,14 @@ public class ComputeMaster : MonoBehaviour
     void Start()
     {
         mainCamera = Camera.main;
+        Color bgColor = (darkColor * 0.5f) + (lightColor * 0.5f);
+        bgColor *= 0.4f;
+        mainCamera.backgroundColor = bgColor;
 
         int numVoxels = numPointsPerAxis * numPointsPerAxis * numPointsPerAxis;
         maxTriangleCount = numVoxels * 50;
         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
 
-        Debug.Log(maxTriangleCount * 36);
 
         spheres = new List<Sphere>();
 
@@ -137,9 +138,9 @@ public class ComputeMaster : MonoBehaviour
         startingTime = Time.realtimeSinceStartup;
 
         Vector3 playerPosition = playerMeshTransform.position;
-        Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis) - numPointsPerAxis,
-                                         playerPosition.y - mod(playerPosition.y, numPointsPerAxis) - numPointsPerAxis,
-                                         playerPosition.z - mod(playerPosition.z, numPointsPerAxis) - numPointsPerAxis);
+        Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
+                                         playerPosition.y - mod(playerPosition.y, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
+                                         playerPosition.z - mod(playerPosition.z, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)));
 
         //spheres done by pressing space (to be removed)
         if (Input.GetKeyDown(KeyCode.Space)) { 
@@ -179,10 +180,10 @@ public class ComputeMaster : MonoBehaviour
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
                                 
-                    Vector3 targetCoordinate = currentSector + new Vector3(
+                    Vector3 targetCoordinate = currentSector + (new Vector3(
                         numPointsPerAxis * x,
                         numPointsPerAxis * y,
-                        numPointsPerAxis * z);// / worldZoom;
+                        numPointsPerAxis * z) * worldZoom);
 
                     int meshIndex = getMeshIndex(oldChunks, targetCoordinate);
 
@@ -207,6 +208,9 @@ public class ComputeMaster : MonoBehaviour
 
                         timeAfterGettingShaderData = Time.realtimeSinceStartup;
 
+                        if(trisCount <= 0) {
+                            Debug.Log("now");
+                        }
                         // fill mesh 
                         var vertices = new Vector3[trisCount * 3];
                         var triangles = new int[trisCount * 3];
@@ -250,7 +254,7 @@ public class ComputeMaster : MonoBehaviour
         marchingShader.SetBuffer(0, "triangles", trianglesBuffer);
         marchingShader.SetBuffer(0, "numTris", numTrisBuffer);
 
-        // Booleans are 4 bytes in HLSL so sizeof(int) is used instead.
+        // Booleans are 4 bytes in HLSL so sizeof(int) is used instead. Bool1 from Unity.Mathematics would be cleaner but i couldn't download that package
         spheresBuffer = new ComputeBuffer(spheres.Count + 1, sizeof(float)*3 + sizeof(int) + sizeof(int), ComputeBufferType.Structured);
         spheresBuffer.SetData((Sphere[]) spheres.ToArray());
 
@@ -265,9 +269,9 @@ public class ComputeMaster : MonoBehaviour
         marchingShader.SetFloat("worldZoom", worldZoom);
 
         float[] pos = new float[3];
-        pos[0] = minCorner.x;
-        pos[1] = minCorner.y;
-        pos[2] = minCorner.z;
+        pos[0] = minCorner.x / worldZoom;
+        pos[1] = minCorner.y / worldZoom;
+        pos[2] = minCorner.z / worldZoom;
         marchingShader.SetFloats("minSectorPos", pos);
         marchingShader.SetFloats("offsetVec", new float[] { offsetX, offsetY, offsetZ });
     }   
@@ -282,10 +286,9 @@ public class ComputeMaster : MonoBehaviour
         //newMesh.RecalculateBounds();
         //newMesh.RecalculateTangents();
         //color mesh
-        mainCamera.backgroundColor = darkColor;
         Color[] colors = new Color[vertices.Length];
         for (int i = 0; i < vertices.Length; i++)
-            colors[i] = Color.Lerp(lightColor, darkColor, Perlin3D(vertices[i]/5f)*2f - 0.5f);
+            colors[i] = Color.Lerp(lightColor, darkColor, Perlin3D(vertices[i]/20f)*2f - 0.5f);
         mesh.colors = colors;
 
         return mesh;
@@ -299,11 +302,13 @@ public class ComputeMaster : MonoBehaviour
         chunk.meshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
         chunk.meshHolder.transform.localScale = new Vector3(1f,1f,1f);
 
+        if(mesh.bounds.size == Vector3.zero) return chunk;
+
         MeshFilter meshFilter = chunk.meshHolder.GetComponent<MeshFilter>();
         meshFilter.sharedMesh = mesh;
         MeshCollider meshCollider = chunk.meshHolder.GetComponent<MeshCollider>();
 
-        // force update
+        // force update, may be overkill
         meshCollider.enabled = false;
         meshCollider.enabled = true;
 
@@ -316,10 +321,7 @@ public class ComputeMaster : MonoBehaviour
         return chunk;
     }
 
-    //modulo that works for negative numbers
-    private float mod(float k, float n) {
-        return ((k %= n) < 0) ? k + n : k;
-    }
+
 
     private int getMeshIndex(List<Chunk> meshList, Vector3 targetCoordinate) {
         int equalMeshIndex = -1;
@@ -347,11 +349,7 @@ public class ComputeMaster : MonoBehaviour
         return equalMeshIndex;
     }
 
-    private void destroyUnusedMeshes(List<Chunk> chunks) {
-        for (int i = 0; i < chunks.Count; i++){
-            if (chunks[i].destroy) Destroy(chunks[i].meshHolder);
-        }
-    }
+
     
     public void createSphere(Vector3 sphereCenter, bool isAirSphere, bool clearTerrain) {
         sphereCount += 1;
@@ -373,6 +371,12 @@ public class ComputeMaster : MonoBehaviour
             Destroy(meshHolders[i].meshHolder);
         }
         meshHolders = new List<Chunk>();
+    }
+
+    private void destroyUnusedMeshes(List<Chunk> chunks) {
+        for (int i = 0; i < chunks.Count; i++){
+            if (chunks[i].destroy) Destroy(chunks[i].meshHolder);
+        }
     }
 
     private int getNumberOfTris() {
@@ -406,6 +410,7 @@ public class ComputeMaster : MonoBehaviour
         Debug.Log("");
     }
 
+    // Note that this Perlin3D implementation is approximately normal distributed
     private float Perlin3D(Vector3 vec) {
         float x = vec.x;
         float y = vec.y;
@@ -420,6 +425,21 @@ public class ComputeMaster : MonoBehaviour
         float CA = Mathf.PerlinNoise(z,x);
 
         float ABC = AB + BC + AC + BA + CB + CA;
-        return ABC/6;
+        ABC /= 6;
+
+        // var(uniform(a,b)) = 1/12 * (b - a)^2
+        // var(XY) = var(uniform(0,1)) = 1/12;
+        // var(Perlin3D) = var(mean((AB + BC + AC + BA + CB + CA)/6)) = sqrt(var(XY) / 6) = sqrt(1/72) = 0.11785
+        // std(Perlin3D) = sqrt(var(Perlin3D) = sqrt(sqrt(1/72)) = 0.3432945
+        // mean(Perlin3D) = 0.5
+
+        float standardized = (ABC - 0.5f) / 0.3432945f;
+
+        return standardized + 0.5f;
+    }
+
+    // modulo that works for negative numbers
+    private float mod(float k, float n) {
+        return ((k %= n) < 0) ? k + n : k;
     }
 }

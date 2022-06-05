@@ -66,7 +66,7 @@ int index(float3 pos) {
 	int cubeIndex = 0;
 
 	for (int i = 0; i < 8; i++) {
-		float val = samplePoint(pos + cornerOffsets[i]);
+		float val = samplePoint((pos + cornerOffsets[i])*2);
 		if (val < surfaceLevel) {
 			//set i'th bit if below surface
 			cubeIndex |= 1 << i;
@@ -99,10 +99,11 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 			float3 vert1 = minCornerPos + edgeVertexOffsets[edgeIndex][0];
 			float3 vert2 = minCornerPos + edgeVertexOffsets[edgeIndex][1];
 
-			//interpolate:
-			float val1 = samplePoint(vert2);
-			float val2 = samplePoint(vert1);
+			//sample terrain function
+			float val1 = samplePoint(vert2*2);
+			float val2 = samplePoint(vert1*2);
 
+			//interpolate
 			float diff;
 			if ((surfaceLevel > val1 && surfaceLevel > val2) || (surfaceLevel < val1 && surfaceLevel < val2) || val1 == val2) {
 				diff = 0.5f;
@@ -112,11 +113,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 			}
 
 			float3 mid = vert2 + diff * (vert1 - vert2);
-
-			//mid *= worldZoom; //for zoom, but wrong sectors
-
+			mid = mid * worldZoom;
 			mid += offsetVec;
-						
+
 			if (i == 0) {
 				tri.vertexA = mid;
 			} else if (i == 1) {
