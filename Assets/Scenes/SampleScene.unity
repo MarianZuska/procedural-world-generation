@@ -487,14 +487,14 @@ MonoBehaviour:
   playerMeshTransform: {fileID: 9777202}
   gun: {fileID: 1274292676}
   surfaceLevel: -0.12
-  worldZoom: 5
+  worldZoom: 4
   numPointsPerAxis: 16
   offsetX: 10
   offsetY: 10
   offsetZ: 10
-  perlinZoom: 0.7
+  perlinZoom: 0.8
   sphereRadius: 20
-  lightColor: {r: 0.7162213, g: 0.8301887, b: 0.71584195, a: 0}
+  lightColor: {r: 0.45007816, g: 0.8301887, b: 0.15194014, a: 0}
   darkColor: {r: 0.6320754, g: 0.45655948, b: 0.34823778, a: 0}
   meshHolder: {fileID: 1475059643082629721, guid: 501bd06923e0b604fb75e1d28a2bf16e,
     type: 3}
