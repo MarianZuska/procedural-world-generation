@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,7 +25,11 @@ public class ComputeMaster : MonoBehaviour
     public Color lightColor;
     public Color darkColor;
 
-    public GameObject meshHolder;
+    public GameObject meshHolderPrefab;
+
+    [HideInInspector]
+    public List<Chunk> chunks;
+
 
     private Vector3 lastBeenSector = Vector3.zero;
     private GameObject s;
@@ -44,7 +49,6 @@ public class ComputeMaster : MonoBehaviour
     private Vector3 currentSector;
     private int maxTriangleCount;
 
-    private List<Chunk> meshHolders;
 
     private Camera mainCamera;
 
@@ -77,7 +81,7 @@ public class ComputeMaster : MonoBehaviour
         }
     };
 
-    struct Chunk {
+    public struct Chunk {
         public Vector3 position;
         public GameObject meshHolder;
         public bool used;
@@ -105,19 +109,18 @@ public class ComputeMaster : MonoBehaviour
         maxTriangleCount = numVoxels * 50;
         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
 
-
         spheres = new List<Sphere>();
 
-        curMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
+        curMeshHolder = Instantiate(meshHolderPrefab, Vector3.zero, Quaternion.identity, transform);
 
         curMeshHolder.GetComponent<MeshFilter>().sharedMesh = new Mesh();
  
         currentSector = Vector3.zero;
-        meshHolders = new List<Chunk>();
+        chunks = new List<Chunk>();
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
                 for (int z = -2; z <= 2; z++) {
-                    GameObject tmpMeshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
+                    GameObject tmpMeshHolder = Instantiate(meshHolderPrefab, Vector3.zero, Quaternion.identity, transform);
                     Mesh curMesh = new Mesh();
                     tmpMeshHolder.GetComponent<MeshFilter>().sharedMesh = curMesh;
                     tmpMeshHolder.GetComponent<MeshCollider>().sharedMesh = curMesh;
@@ -127,10 +130,16 @@ public class ComputeMaster : MonoBehaviour
                     cur.position = Vector3.zero;
                     cur.used = false;
                     cur.destroy = false;
-                    meshHolders.Add(cur);
+                    chunks.Add(cur);
                 }
             }
         }
+    }
+
+    private void OnDisable() {
+        if(trianglesBuffer != null) trianglesBuffer.Release();
+        if(numTrisBuffer != null) numTrisBuffer.Release();
+        if(spheresBuffer != null) spheresBuffer.Release();
     }
 
     void Update()
@@ -141,6 +150,7 @@ public class ComputeMaster : MonoBehaviour
         Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
                                          playerPosition.y - mod(playerPosition.y, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
                                          playerPosition.z - mod(playerPosition.z, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)));
+
 
         //spheres done by pressing space (to be removed)
         if (Input.GetKeyDown(KeyCode.Space)) { 
@@ -164,13 +174,13 @@ public class ComputeMaster : MonoBehaviour
 
         //"deep copy" meshHolders into oldChunks but set destroy to true
         List<Chunk> oldChunks = new List<Chunk>();
-        for (int i = 0; i < meshHolders.Count; i++)
+        for (int i = 0; i < chunks.Count; i++)
         {
-            Chunk chunk = meshHolders[i];
+            Chunk chunk = chunks[i];
             chunk.destroy = true;
             oldChunks.Add(chunk);
         }
-        meshHolders = new List<Chunk>();
+        chunks = new List<Chunk>();
 
         int meshHolderIndex = 0;
         int skippedCount = 0;
@@ -179,17 +189,14 @@ public class ComputeMaster : MonoBehaviour
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
                 for (int z = -1; z <= 1; z++) {
-                                
-                    Vector3 targetCoordinate = currentSector + (new Vector3(
-                        numPointsPerAxis * x,
-                        numPointsPerAxis * y,
-                        numPointsPerAxis * z) * worldZoom);
+                    Vector3 chunkOffset = new Vector3(x,y,z) * worldZoom * numPointsPerAxis;      
+                    Vector3 targetCoordinate = currentSector + chunkOffset;
 
                     int meshIndex = getMeshIndex(oldChunks, targetCoordinate);
 
                     if (meshIndex > -1) {
                         skippedCount++;
-                        meshHolders.Add(oldChunks[meshIndex]);
+                        chunks.Add(oldChunks[meshIndex]);
                     } else {
                         numTrisBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.Counter);
                         numTrisBuffer.SetCounterValue(0);
@@ -227,7 +234,7 @@ public class ComputeMaster : MonoBehaviour
                         
                         Mesh mesh = createMesh(vertices, triangles);
                         Chunk chunk = createChunk(mesh, targetCoordinate);
-                        meshHolders.Add(chunk);
+                        chunks.Add(chunk);
 
                         timeAfterMeshAssembly = Time.realtimeSinceStartup;
 
@@ -299,7 +306,7 @@ public class ComputeMaster : MonoBehaviour
         chunk.destroy = false;
         chunk.used = true;
         chunk.position = pos;
-        chunk.meshHolder = Instantiate(meshHolder, Vector3.zero, Quaternion.identity, transform);
+        chunk.meshHolder = Instantiate(meshHolderPrefab, Vector3.zero, Quaternion.identity, transform);
         chunk.meshHolder.transform.localScale = new Vector3(1f,1f,1f);
 
         if(mesh.bounds.size == Vector3.zero) return chunk;
@@ -366,16 +373,16 @@ public class ComputeMaster : MonoBehaviour
     }
 
     private void clearMeshes() {
-        for (int i = 0; i < meshHolders.Count; i++)
+        for (int i = 0; i < chunks.Count; i++)
         {
-            Destroy(meshHolders[i].meshHolder);
+            Destroy(chunks[i].meshHolder);
         }
-        meshHolders = new List<Chunk>();
+        chunks = new List<Chunk>();
     }
 
-    private void destroyUnusedMeshes(List<Chunk> chunks) {
-        for (int i = 0; i < chunks.Count; i++){
-            if (chunks[i].destroy) Destroy(chunks[i].meshHolder);
+    private void destroyUnusedMeshes(List<Chunk> usedChunks) {
+        for (int i = 0; i < usedChunks.Count; i++){
+            if (usedChunks[i].destroy) Destroy(usedChunks[i].meshHolder);
         }
     }
 
