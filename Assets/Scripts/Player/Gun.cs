@@ -70,10 +70,10 @@ public class Gun : MonoBehaviour
         currentBullet.GetComponent<Bullet>().gun = this;
         currentBullet.GetComponent<Bullet>().isAirBullet = isAirShot;
         currentBullet.GetComponent<Bullet>().computeMaster = computeMaster;
+        currentBullet.GetComponent<Rigidbody>().AddForce(direction.normalized * shootForce, ForceMode.Impulse);
 
         currentBullet.transform.forward = direction.normalized;
 
-        currentBullet.GetComponent<Rigidbody>().AddForce(direction.normalized * shootForce, ForceMode.Impulse);
 
         //rb.AddForce(-direction.normalized * recoilForce, ForceMode.Impulse);
 

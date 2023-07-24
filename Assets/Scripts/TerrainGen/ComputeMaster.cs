@@ -7,7 +7,7 @@ public class ComputeMaster : MonoBehaviour
 {
     public ComputeShader marchingShader;
 
-    public Transform playerMeshTransform;
+    public Transform playerTransform;
     public Gun gun;
     public float surfaceLevel;
 
@@ -42,7 +42,7 @@ public class ComputeMaster : MonoBehaviour
     private ComputeBuffer spheresBuffer;
     private ComputeBuffer numTrisBuffer;
 
-    private List<Sphere> spheres;
+    private List<Sphere> spheres = new List<Sphere>();
 
     private GameObject curMeshHolder;
     private Vector3 minCornerPos;
@@ -109,10 +109,8 @@ public class ComputeMaster : MonoBehaviour
         maxTriangleCount = numVoxels * 50;
         trianglesBuffer = new ComputeBuffer(maxTriangleCount, sizeof(float) * 3 * 3, ComputeBufferType.Append);
 
-        spheres = new List<Sphere>();
 
         curMeshHolder = Instantiate(meshHolderPrefab, Vector3.zero, Quaternion.identity, transform);
-
         curMeshHolder.GetComponent<MeshFilter>().sharedMesh = new Mesh();
  
         currentSector = Vector3.zero;
@@ -146,7 +144,7 @@ public class ComputeMaster : MonoBehaviour
     {
         startingTime = Time.realtimeSinceStartup;
 
-        Vector3 playerPosition = playerMeshTransform.position;
+        Vector3 playerPosition = playerTransform.position;
         Vector3 nextSector = new Vector3(playerPosition.x - mod(playerPosition.x, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
                                          playerPosition.y - mod(playerPosition.y, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)),
                                          playerPosition.z - mod(playerPosition.z, numPointsPerAxis * worldZoom) - (numPointsPerAxis * worldZoom * (.0f)));
@@ -154,7 +152,7 @@ public class ComputeMaster : MonoBehaviour
 
         //spheres done by pressing space (to be removed)
         if (Input.GetKeyDown(KeyCode.Space)) { 
-            createSphere(playerMeshTransform.position, true, true);
+            createSphere(playerTransform.position, true, true);
         }
         if(firstFrame) {
             clearMeshes();
@@ -192,7 +190,7 @@ public class ComputeMaster : MonoBehaviour
                     Vector3 chunkOffset = new Vector3(x,y,z) * worldZoom * numPointsPerAxis;      
                     Vector3 targetCoordinate = currentSector + chunkOffset;
 
-                    int meshIndex = getMeshIndex(oldChunks, targetCoordinate);
+                    int meshIndex = getMeshIndexFromCoords(oldChunks, targetCoordinate);
 
                     if (meshIndex > -1) {
                         skippedCount++;
@@ -266,10 +264,9 @@ public class ComputeMaster : MonoBehaviour
         spheresBuffer.SetData((Sphere[]) spheres.ToArray());
 
         marchingShader.SetBuffer(0, "spheres", spheresBuffer);
-
         marchingShader.SetInt("sphereCount", spheres.Count);
-
         marchingShader.SetInt("sphereRadius", sphereRadius);
+
         marchingShader.SetInt("numPointsPerAxis", numPointsPerAxis);
         marchingShader.SetFloat("surfaceLevel", surfaceLevel);
         marchingShader.SetFloat("perlinZoom", perlinZoom);
@@ -292,7 +289,9 @@ public class ComputeMaster : MonoBehaviour
         mesh.RecalculateNormals();
         //newMesh.RecalculateBounds();
         //newMesh.RecalculateTangents();
-        //color mesh
+
+        //Todo add terrains
+        //color in mesh
         Color[] colors = new Color[vertices.Length];
         for (int i = 0; i < vertices.Length; i++)
             colors[i] = Color.Lerp(lightColor, darkColor, Perlin3D(vertices[i]/20f)*2f - 0.5f);
@@ -328,40 +327,26 @@ public class ComputeMaster : MonoBehaviour
         return chunk;
     }
 
-
-
-    private int getMeshIndex(List<Chunk> meshList, Vector3 targetCoordinate) {
-        int equalMeshIndex = -1;
+    private int getMeshIndexFromCoords(List<Chunk> meshList, Vector3 targetCoordinate) {
         for (int i = 0; i < meshList.Count; i++)
         {
-            if (meshList[i].used)
+            if (meshList[i].used && Vector3.Distance(meshList[i].position, targetCoordinate) < 0.1f)
             {
-                var dist = Vector3.Distance(meshList[i].position, targetCoordinate);
+                //set destroy to false
+                Chunk tmp = meshList[i];
+                tmp.destroy = false;
+                meshList[i] = tmp;
 
-                if (dist < 0.1f && meshList[i].used)
-                {
-                    //save index
-                    equalMeshIndex = i;
-
-                    //set destroy to false
-                    Chunk tmp = meshList[i];
-                    tmp.destroy = false;
-                    meshList[i] = tmp;
-
-                    break;
-                }
+                return i;
             }
         }
-
-        return equalMeshIndex;
+        return -1;
+        
     }
-
-
     
     public void createSphere(Vector3 sphereCenter, bool isAirSphere, bool clearTerrain) {
         sphereCount += 1;
         Sphere sphere = new Sphere();
-        sphereCenter = sphereCenter - new Vector3(offsetX, offsetY, offsetZ);
         sphere.x = sphereCenter.x;
         sphere.y = sphereCenter.y;
         sphere.z = sphereCenter.z;

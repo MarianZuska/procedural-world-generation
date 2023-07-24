@@ -30,16 +30,19 @@ AppendStructuredBuffer<Triangle> triangles;
 StructuredBuffer<Sphere> spheres;
 RWStructuredBuffer<int> numTris;
 
-//checks if the given point is inside on of the spheres
+//checks if the given point is inside any sphere
 int collidingSphere(float3 pos) {
 	if(sphereCount > 0) {
 		for(int i=sphereCount-1; i>=0; i--) {
 			Sphere sphere = spheres[i];
 			float3 spos = sphere.position;
-			float distToCircle2 = (pos.x - spos.x)*(pos.x - spos.x) + (pos.y - spos.y)*(pos.y - spos.y) + (pos.z - spos.z)*(pos.z - spos.z);
+			spos /= worldZoom/2;
+			spos -= offsetVec/2;
+
+			float distToSphere2 = (pos.x - spos.x)*(pos.x - spos.x) + (pos.y - spos.y)*(pos.y - spos.y) + (pos.z - spos.z)*(pos.z - spos.z);
 			float sphereRadius2 = sphereRadius * sphereRadius;
 
-			if (distToCircle2 <= sphereRadius2) {
+			if (distToSphere2 <= sphereRadius2) {
 				return sphere.surfaceValue;
 			}
 		}

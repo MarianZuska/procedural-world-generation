@@ -143,7 +143,7 @@ public class MarchingCubes : MonoBehaviour
                         if (equalMeshIndex != -1) {
                             skippedCount++;
                             meshHolders.Add(oldMeshHolders[equalMeshIndex]);
-                        //if new mesh needed
+                        //else new mesh needed
                         } else {
                             march(minCoord, trisAll.Count);
                             updateMesh(vertices, triangles, minCoord);

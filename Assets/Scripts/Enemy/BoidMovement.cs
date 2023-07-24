@@ -8,8 +8,10 @@ public class BoidMovement : MonoBehaviour
     public float maxSpeed = 12;
     
     public bool showDebugLines = true;
+    public bool removed = false;
 
     private GeneratorHelper generatorHelper;
+    private GameStateManager gameStateManager;
     private Vector3 velocity;
 
     private float fowardAcceleration = 5f;
@@ -18,6 +20,7 @@ public class BoidMovement : MonoBehaviour
 
     void Start() {
         generatorHelper = GameObject.FindGameObjectWithTag("TerrainGenerator").GetComponent<GeneratorHelper>();
+        gameStateManager = GameObject.FindGameObjectWithTag("TerrainGenerator").GetComponent<GameStateManager>();
 
         velocity = transform.forward * (minSpeed + maxSpeed) / 2f;
     }
@@ -89,6 +92,21 @@ public class BoidMovement : MonoBehaviour
         }
         
         return transform.forward;
+    }
+
+    private void OnCollisionEnter(Collision other) {
+        if(other.gameObject.tag == "Player") {
+            if(!removed) {
+                gameStateManager.increaseScore(1);
+                explode();
+            }
+        }
+    }
+
+    private void explode() {
+        removed = true;
+        gameStateManager.boids.Remove(transform);
+        Destroy(gameObject);
     }
 
     //returns the direction to the nearest surface

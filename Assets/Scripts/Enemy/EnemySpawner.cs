@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+//TODO not rlly used yet?
 public class EnemySpawner : MonoBehaviour
 {
     public int enemyCount = 20;
